@@ -18,19 +18,14 @@ Extract the essential behavior from a prototype as a minimal, implementation-neu
 |------|-----|--------|
 | 1 | Read the prototype | Understanding of what it does |
 | 2 | Extract minimal spec | Behavioral spec with hard constraints only |
-| 3 | (Optional) Reset to merge-base | Clean working tree, prototype stashed |
+| 3 | Reset to merge-base | Clean working tree, prototype stashed |
 | 4 | Reimplement via contextless subagent | Fresh implementation from spec alone |
 
 ## Process
 
 ### 1. Read the Prototype
 
-Read all files that constitute the prototype. Accept:
-- Explicit file paths or globs from the user
-- A directory
-- "Current changes" — run `git diff HEAD` and `git status` to identify modified/added files, then read them
-
-If the scope is ambiguous, ask the user to identify what constitutes the prototype before proceeding.
+Identify the merge-base (`git merge-base HEAD <main-branch>`) and run `git diff <merge-base>` and `git status` to find all files changed since the branch diverged — committed and uncommitted. Read them all. This is always the prototype scope.
 
 ### 2. Extract the Minimal Spec
 
@@ -71,22 +66,17 @@ State the non-goals explicitly. If the original used React, and React is not a h
 
 Show the spec to the user and ask for confirmation before proceeding. If the user adds details, incorporate them — but push back on any additions that encode "how" rather than "what" unless the user marks them as non-negotiable.
 
-### 3. (Optional) Reset to Merge-Base
+### 3. Reset to Merge-Base
 
-Ask the user whether to reset the working tree to the merge-base before reimplementing, or to keep the prototype in place.
-
-**Why:** Removing the prototype from the working tree prevents the reimplementing subagent from reading it, which would undermine the clean-room constraint. If the prototype stays, instruct the subagent explicitly not to read the existing files.
-
-**If resetting:**
+Reset the working tree to the merge-base before reimplementing. This removes the prototype from the working tree so the reimplementing subagent cannot read it, enforcing the clean-room constraint.
 
 1. Identify the merge-base: `git merge-base HEAD <main-branch>` (check for `main`, `master`, or `origin/HEAD`)
-2. Stash everything (committed and uncommitted prototype work):
+2. Get the current branch name: `git rev-parse --abbrev-ref HEAD`
+3. Stash everything (committed and uncommitted prototype work):
    - `git add -A`
-   - `git stash push --include-untracked -m "prototype-distill: prototype stash $(date '+%Y-%m-%d %H:%M')"`
-   - If commits exist above merge-base: `git reset --soft <merge-base>` then stash again, or use `git diff <merge-base>` to verify what's captured
-3. Confirm to the user: show the stash ref so they can recover with `git stash pop` or `git stash apply stash@{0}`
-
-**If not resetting:** Note in the subagent prompt that existing files are the old prototype and must not be used as a reference.
+   - `git stash push --include-untracked -m "iterate/<branch> $(date '+%Y-%m-%d %H:%M')"`
+   - If commits exist above merge-base: `git reset --soft <merge-base>` then stash again
+4. Confirm to the user: show the stash ref so they can recover with `git stash pop` or `git stash apply stash@{0}`
 
 ### 4. Reimplement via Contextless Subagent
 
@@ -119,12 +109,12 @@ Report back to the user with a summary of what the subagent produced and how it 
 - **Leaking "how" into the spec.** "Uses a React component tree" is how. "Renders a filterable list of items" is what. If an implementation detail isn't in Hard Constraints, it shouldn't be in the spec.
 - **Skipping user confirmation on the spec.** The spec is the contract. If it's wrong, the reimplementation will be wrong. Always show it before proceeding.
 - **Forgetting non-goals.** A spec without explicit non-goals leaves the subagent to infer constraints from what it sees. Name what's freed.
-- **Resetting without confirming the stash.** Verify the stash ref before resetting. Losing the prototype is hard to recover from if the stash failed.
+- **Not confirming the stash ref.** Verify the stash ref before resetting. Losing the prototype is hard to recover from if the stash failed.
 - **Passing the original code to the subagent.** Even "for context" — this defeats the clean-room constraint.
 
 ## Key Principles
 
 - **The spec describes behavior, not structure.** If the spec could be satisfied by multiple different architectures, it's doing its job.
 - **Hard constraints must be justified.** "We use X" is not a justification. "We use X because the API requires it" or "because the user specified it" is.
-- **The reset is optional but recommended.** A reimplementing agent that can see the prototype will be anchored by it, consciously or not.
+- **The reset is mandatory.** A reimplementing agent that can see the prototype will be anchored by it, consciously or not.
 - **The subagent's context window is a clean room.** What goes in shapes what comes out. Spec only.
